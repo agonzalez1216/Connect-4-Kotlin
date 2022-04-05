@@ -1,18 +1,22 @@
-const val space = " "
+import connectfour.Board
+
 const val player1 = "o"
-    const val player2 = "*"
-    private var currentPlayer = ""
-    fun main() {
-        val validRange = 5..9
-        var rows = 0
-        var cols = 0
-        var validBoardSize = false
-        var gameIsOn = true
-        val regex = Regex("\\d?\\d(x|X)\\d?\\d")
-        val singleDigit = Regex("\\d+")
+const val player2 = "*"
+private var currentPlayer = ""
+fun main() {
+    val validRange = 5..9
+    var rows = 0
+    var cols = 0
+    var validBoardSize = false
+    var validGameNumber = false
+    var gameIsOn = true
+    val regex = Regex("\\d?\\d(x|X)\\d?\\d")
+    val singleDigit = Regex("\\d+")
     var moveCount = 0
     var isDraw = false
     var isWinningMove = false
+    var numberOfGames:Int? = 1
+    var moveSuccessful = false
     println("Connect Four")
 
     println("First player's name:")
@@ -52,13 +56,46 @@ const val player1 = "o"
             }
         }
     }
+
+    while(!validGameNumber) {
+        println(
+            "Do you want to play single or multiple games?\n" +
+                    "For a single game, input 1 or press Enter\n" +
+                    "Input a number of games:"
+        )
+        val numberOfGamesText = readLine()
+        if (numberOfGamesText == "") {
+            numberOfGames = 1
+            break
+        }
+        numberOfGames = numberOfGamesText!!.toIntOrNull()
+        if (numberOfGames == null || numberOfGames == 0) {
+            println("Invalid Input")
+        } else {
+            validGameNumber = true
+        }
+    }
+
     println("$firstPlayer VS $secondPlayer")
     println("$rows X $cols board")
     val range = 1..cols
-    val gameBoard = createGameBoard(rows,cols)
-    printGameBoard(rows, cols, gameBoard)
+    val gameBoard = Board(rows,cols, firstPlayer!!, secondPlayer!!, numberOfGames!!)
+    if(gameBoard.isSingleGame){
+        println("Single Game")
+        gameBoard.printGameBoard()
+    } else {
+        println("Total $numberOfGames games")
+        println("Game #${gameBoard.gameCount}")
+        gameBoard.printGameBoard()
+    }
+
     takeTurns()
-    while(gameIsOn){
+
+    while(gameBoard.gameCount <= numberOfGames){
+        if (gameBoard.moveCount == 0 && !gameBoard.isSingleGame && moveSuccessful){
+            println("Game #${gameBoard.gameCount}")
+            gameBoard.printGameBoard()
+        }
         if (currentPlayer == player1) {
             println("$firstPlayer's turn:")
         } else{
@@ -66,7 +103,6 @@ const val player1 = "o"
         }
         val inputText = readLine()!!
         if (inputText == "end"){
-            gameIsOn = false
             break
         }
         if (!inputText.matches(singleDigit)){
@@ -75,82 +111,16 @@ const val player1 = "o"
             var colChoice = inputText.toInt()
             if (colChoice in range) {
                 colChoice--
-                val (isFull, rowPlacement) = placePiece(colChoice, gameBoard, currentPlayer)
-                if (!isFull) {
-                    printGameBoard(rows, cols, gameBoard)
-                    if (moveCount >= 6) {
-                        isWinningMove = checkWin(gameBoard, rowPlacement, colChoice)
-                        if (isWinningMove) break
-                    }
-                    moveCount++
-                    isDraw = moveCount == rows * cols
-                    if (isDraw) break
-                    takeTurns()
-                } else {
-                    println("Column ${colChoice + 1} is full")
-                }
+                moveSuccessful = gameBoard.placePiece(colChoice, currentPlayer)
+                if (moveSuccessful) takeTurns()
             } else {
                 println("The column number is out of range (1 - $cols)")
             }
         }
     }
-    if(gameIsOn) {
-        if (isDraw) {
-            println("It is a draw")
-        } else {
-            if (currentPlayer == player1) {
-                println("Player $firstPlayer won")
-            } else {
-                println("Player $secondPlayer won")
-            }
-        }
-    }
     println("Game over!")
 }
-fun createGameBoard(rows: Int, cols: Int): Array<Array<String>> {
-    return Array(rows) { Array(cols) { space } }
-}
-fun printGameBoard(rows: Int, cols: Int, gameBoard: Array<Array<String>>) {
-    for(i in 1..rows+2) {
-        when(i){
-            1 -> {
-                for (j in 1..cols) {
-                    print(" $j")
-                    when(j) {
-                        cols -> println(" ")
-                    }
-                }
-            }
-            rows + 2 -> {
-                for (j in 1 .. cols){
-                    when(j) {
-                        1 -> print("╚")
-                        else -> print("═╩")
-                    }
-                }
-                println("═╝")
-            }
-            else ->{
-                for (j in 1..cols){
-                    print("║${gameBoard[i-2][j-1]}")
-                    when(j) {
-                        cols -> println("║")
-                    }
-                }
-            }
-        }
-    }
-}
 
-fun placePiece(col:Int, gameBoard: Array<Array<String>>, piece: String): Pair<Boolean, Int> {
-    for (i in gameBoard.lastIndex downTo 0) {
-        if (gameBoard[i][col] == space) {
-            gameBoard[i][col] = piece
-            return Pair(false, i)
-        }
-    }
-    return Pair(true, 0)
-}
 
 fun takeTurns(){
     currentPlayer = if(player1 == currentPlayer){
@@ -160,59 +130,3 @@ fun takeTurns(){
     }
 }
 
-fun checkWin(gameBoard: Array<Array<String>>, row: Int, col: Int): Boolean{
-    val height = gameBoard.size
-    val width = gameBoard[0].size
-    val piece = gameBoard[row][col]
-    if(col + 3 < width &&
-        piece == gameBoard[row][col+1] &&
-        piece == gameBoard[row][col+2] &&
-        piece == gameBoard[row][col+3]) {
-        return true
-    }
-    if(col - 3 >= 0 &&
-        piece == gameBoard[row][col-1] &&
-        piece == gameBoard[row][col-2] &&
-        piece == gameBoard[row][col-3]) {
-        return true
-    }
-    if(row + 3 < height) {
-        if(piece == gameBoard[row + 1][col] &&
-            piece == gameBoard[row + 2][col] &&
-            piece == gameBoard[row + 3][col]) {
-            return true
-        }
-        if(col + 3 < width &&
-            piece == gameBoard[row+1][col+1] &&
-            piece == gameBoard[row+2][col+2] &&
-            piece == gameBoard[row+3][col+3]){
-            return true
-        }
-        if(col - 3 >= 0 &&
-            piece == gameBoard[row+1][col-1] &&
-            piece == gameBoard[row+2][col-2] &&
-            piece == gameBoard[row+3][col-3]){
-            return true
-        }
-    }
-    if(row - 3 >= 0) {
-        if(piece == gameBoard[row - 1][col] &&
-            piece == gameBoard[row - 2][col] &&
-            piece == gameBoard[row - 3][col]) {
-            return true
-        }
-        if(col + 3 < width &&
-            piece == gameBoard[row-1][col+1] &&
-            piece == gameBoard[row-2][col+2] &&
-            piece == gameBoard[row-3][col+3]){
-            return true
-        }
-        if(col - 3 >= 0 &&
-            piece == gameBoard[row-1][col-1] &&
-            piece == gameBoard[row-2][col-2] &&
-            piece == gameBoard[row-3][col-3]){
-            return true
-        }
-    }
-    return false
-}
